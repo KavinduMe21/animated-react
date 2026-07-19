@@ -1,8 +1,24 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, Suspense, Component, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment } from "@react-three/drei";
+import { Environment, useTexture, Billboard, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
+
+/* ------------------------------------------------------------------ */
+/*  Error boundary – renders nothing if texture fails to load         */
+/* ------------------------------------------------------------------ */
+class TextureErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Smooth scroll progress (rAF, no re-renders)                       */
@@ -30,32 +46,14 @@ function useSmoothScrollProgress(
 }
 
 /* ------------------------------------------------------------------ */
-/*  3D Whale – procedural geometry with glass material                */
+/*  3D Whale – GLB model that orbits the scene                        */
 /* ------------------------------------------------------------------ */
 function Whale({ progressRef }: { progressRef: React.MutableRefObject<number> }) {
   const groupRef = useRef<THREE.Group>(null);
-  const tailRef = useRef<THREE.Group>(null);
+  const { scene } = useGLTF("/white_mesh.glb");
 
-  const whaleMat = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color("#2266dd"),
-        transmission: 0.88,
-        roughness: 0.05,
-        metalness: 0,
-        thickness: 2,
-        ior: 1.4,
-        transparent: true,
-        opacity: 0.9,
-        envMapIntensity: 2,
-        clearcoat: 1,
-        clearcoatRoughness: 0.05,
-        side: THREE.DoubleSide,
-        attenuationColor: new THREE.Color("#1144aa"),
-        attenuationDistance: 3,
-      }),
-    [],
-  );
+  // Clone the scene so it can be reused without conflicts
+  const clonedScene = useMemo(() => scene.clone(), [scene]);
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -69,199 +67,45 @@ function Whale({ progressRef }: { progressRef: React.MutableRefObject<number> })
     groupRef.current.position.z = Math.sin(angle) * radius;
     groupRef.current.position.y = Math.sin(t * 0.7) * 0.18;
 
-    // Face movement direction
-    groupRef.current.rotation.y = -angle + Math.PI / 2;
+    // Face movement direction (flipped)
+    groupRef.current.rotation.y = -angle - Math.PI / 2;
     // Gentle body roll
     groupRef.current.rotation.z = Math.sin(t * 0.5) * 0.04;
     groupRef.current.rotation.x = Math.sin(t * 0.3) * 0.02;
-
-    // Tail wag
-    if (tailRef.current) {
-      tailRef.current.rotation.y = Math.sin(t * 2.8) * 0.22;
-      tailRef.current.rotation.x = Math.sin(t * 1.4) * 0.05;
-    }
   });
 
   return (
     <group ref={groupRef} scale={1.1}>
-      {/* Main body – elongated ellipsoid */}
-      <mesh scale={[0.72, 0.52, 1.85]} material={whaleMat}>
-        <sphereGeometry args={[1, 64, 48]} />
-      </mesh>
-
-      {/* Head/melon bulge */}
-      <mesh position={[0, 0.14, 1.6]} scale={[0.52, 0.42, 0.55]} material={whaleMat}>
-        <sphereGeometry args={[1, 48, 32]} />
-      </mesh>
-
-      {/* Lower jaw */}
-      <mesh position={[0, -0.18, 1.35]} scale={[0.42, 0.2, 0.65]} material={whaleMat}>
-        <sphereGeometry args={[1, 32, 24]} />
-      </mesh>
-
-      {/* Rostrum (snout tip) */}
-      <mesh position={[0, 0.0, 2.0]} scale={[0.3, 0.22, 0.3]} material={whaleMat}>
-        <sphereGeometry args={[1, 24, 16]} />
-      </mesh>
-
-      {/* Eyes – emissive */}
-      <mesh position={[0.4, 0.1, 1.2]}>
-        <sphereGeometry args={[0.055, 16, 16]} />
-        <meshStandardMaterial color="#bbddff" emissive="#4499ff" emissiveIntensity={4} />
-      </mesh>
-      <mesh position={[-0.4, 0.1, 1.2]}>
-        <sphereGeometry args={[0.055, 16, 16]} />
-        <meshStandardMaterial color="#bbddff" emissive="#4499ff" emissiveIntensity={4} />
-      </mesh>
-
-      {/* Dorsal fin */}
-      <mesh position={[0, 0.58, -0.15]} rotation={[0.2, 0, 0]} scale={[0.06, 0.35, 0.3]} material={whaleMat}>
-        <sphereGeometry args={[1, 16, 16]} />
-      </mesh>
-
-      {/* Left pectoral fin */}
-      <mesh position={[0.6, -0.18, 0.5]} rotation={[0.2, 0.2, 0.7]} scale={[0.04, 0.45, 0.2]} material={whaleMat}>
-        <sphereGeometry args={[1, 16, 12]} />
-      </mesh>
-
-      {/* Right pectoral fin */}
-      <mesh position={[-0.6, -0.18, 0.5]} rotation={[0.2, -0.2, -0.7]} scale={[0.04, 0.45, 0.2]} material={whaleMat}>
-        <sphereGeometry args={[1, 16, 12]} />
-      </mesh>
-
-      {/* Tail section */}
-      <group ref={tailRef} position={[0, 0.0, -2.0]}>
-        {/* Peduncle */}
-        <mesh scale={[0.25, 0.22, 0.75]} material={whaleMat}>
-          <sphereGeometry args={[1, 24, 16]} />
-        </mesh>
-        {/* Left fluke */}
-        <mesh position={[0.45, 0.05, -0.65]} rotation={[0.08, 0.25, 0.1]} scale={[0.55, 0.04, 0.3]} material={whaleMat}>
-          <sphereGeometry args={[1, 16, 12]} />
-        </mesh>
-        {/* Right fluke */}
-        <mesh position={[-0.45, 0.05, -0.65]} rotation={[0.08, -0.25, -0.1]} scale={[0.55, 0.04, 0.3]} material={whaleMat}>
-          <sphereGeometry args={[1, 16, 12]} />
-        </mesh>
-      </group>
-
-      {/* Belly ridges – subtle geometry detail */}
-      {[0, 0.15, 0.3, 0.45, 0.6].map((offset, i) => (
-        <mesh key={i} position={[0, -0.42 + i * 0.02, 0.3 + offset]} scale={[0.5 - i * 0.05, 0.01, 0.12]} material={whaleMat}>
-          <boxGeometry args={[1, 1, 1]} />
-        </mesh>
-      ))}
-
-      {/* Inner glow light */}
-      <pointLight color="#3388ff" intensity={5} distance={5} decay={2} position={[0, 0, 0.5]} />
+      <primitive object={clonedScene} scale={1} />
     </group>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  3D Human – mannequin style with metallic material                 */
+/*  2D Human – textured billboard at center                           */
 /* ------------------------------------------------------------------ */
 function Human() {
-  const mat = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color("#667799"),
-        metalness: 0.6,
-        roughness: 0.25,
-        transparent: true,
-        opacity: 0.82,
-        envMapIntensity: 1.5,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.2,
-      }),
-    [],
-  );
+  const humanTexture = useTexture("/human.PNG");
+
+  // Man image aspect ratio (~0.76:1 portrait)
+  const manHeight = 4.8;
+  const manWidth = manHeight * .76;
 
   return (
-    <group position={[0, 0, 0]}>
-      {/* Head */}
-      <mesh position={[0, 2.1, 0]} material={mat}>
-        <sphereGeometry args={[0.2, 32, 32]} />
-      </mesh>
-      {/* Neck */}
-      <mesh position={[0, 1.84, 0]} material={mat}>
-        <capsuleGeometry args={[0.07, 0.12, 8, 16]} />
-      </mesh>
-      {/* Upper torso / chest */}
-      <mesh position={[0, 1.52, 0]} material={mat}>
-        <capsuleGeometry args={[0.24, 0.3, 8, 16]} />
-      </mesh>
-      {/* Lower torso / abdomen */}
-      <mesh position={[0, 1.1, 0]} material={mat}>
-        <capsuleGeometry args={[0.2, 0.22, 8, 16]} />
-      </mesh>
-      {/* Hips */}
-      <mesh position={[0, 0.85, 0]} material={mat}>
-        <capsuleGeometry args={[0.22, 0.08, 8, 16]} />
-      </mesh>
-
-      {/* Left shoulder */}
-      <mesh position={[0.3, 1.7, 0]} material={mat}>
-        <sphereGeometry args={[0.08, 16, 16]} />
-      </mesh>
-      {/* Left upper arm */}
-      <mesh position={[0.34, 1.48, 0]} rotation={[0, 0, 0.12]} material={mat}>
-        <capsuleGeometry args={[0.055, 0.32, 8, 12]} />
-      </mesh>
-      {/* Left lower arm */}
-      <mesh position={[0.38, 1.1, 0]} rotation={[0, 0, 0.06]} material={mat}>
-        <capsuleGeometry args={[0.048, 0.3, 8, 12]} />
-      </mesh>
-      {/* Left hand */}
-      <mesh position={[0.39, 0.88, 0]} material={mat}>
-        <sphereGeometry args={[0.05, 12, 12]} />
-      </mesh>
-
-      {/* Right shoulder */}
-      <mesh position={[-0.3, 1.7, 0]} material={mat}>
-        <sphereGeometry args={[0.08, 16, 16]} />
-      </mesh>
-      {/* Right upper arm */}
-      <mesh position={[-0.34, 1.48, 0]} rotation={[0, 0, -0.12]} material={mat}>
-        <capsuleGeometry args={[0.055, 0.32, 8, 12]} />
-      </mesh>
-      {/* Right lower arm */}
-      <mesh position={[-0.38, 1.1, 0]} rotation={[0, 0, -0.06]} material={mat}>
-        <capsuleGeometry args={[0.048, 0.3, 8, 12]} />
-      </mesh>
-      {/* Right hand */}
-      <mesh position={[-0.39, 0.88, 0]} material={mat}>
-        <sphereGeometry args={[0.05, 12, 12]} />
-      </mesh>
-
-      {/* Left upper leg */}
-      <mesh position={[0.12, 0.55, 0]} material={mat}>
-        <capsuleGeometry args={[0.09, 0.4, 8, 12]} />
-      </mesh>
-      {/* Left lower leg */}
-      <mesh position={[0.12, 0.1, 0]} material={mat}>
-        <capsuleGeometry args={[0.07, 0.4, 8, 12]} />
-      </mesh>
-      {/* Left foot */}
-      <mesh position={[0.12, -0.16, 0.04]} scale={[0.7, 0.35, 1.2]} material={mat}>
-        <sphereGeometry args={[0.08, 12, 12]} />
-      </mesh>
-
-      {/* Right upper leg */}
-      <mesh position={[-0.12, 0.55, 0]} material={mat}>
-        <capsuleGeometry args={[0.09, 0.4, 8, 12]} />
-      </mesh>
-      {/* Right lower leg */}
-      <mesh position={[-0.12, 0.1, 0]} material={mat}>
-        <capsuleGeometry args={[0.07, 0.4, 8, 12]} />
-      </mesh>
-      {/* Right foot */}
-      <mesh position={[-0.12, -0.16, 0.04]} scale={[0.7, 0.35, 1.2]} material={mat}>
-        <sphereGeometry args={[0.08, 12, 12]} />
-      </mesh>
-
+    <group position={[0, 1.2, 0]}>
+      <Billboard follow lockX={false} lockY={false} lockZ={false}>
+        <mesh>
+          <planeGeometry args={[manWidth, manHeight]} />
+          <meshBasicMaterial
+            map={humanTexture}
+            transparent
+            alphaTest={0.1}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      </Billboard>
       {/* Rim light */}
-      <pointLight color="#6688bb" intensity={2} distance={3} position={[0, 1.3, -0.5]} />
+      <pointLight color="#6688bb" intensity={2} distance={3} position={[0, 0, -0.5]} />
     </group>
   );
 }
@@ -410,7 +254,7 @@ function OrbitRing() {
 
   return (
     <mesh ref={ringRef} rotation={[-Math.PI / 2 + 0.14, 0, 0]} position={[0, 1, 0]}>
-      <ringGeometry args={[3.5, 3.65, 128]} />
+      {/* <ringGeometry args={[3.5, 3.65, 128]} /> */}
       <meshBasicMaterial
         color="#3366cc"
         transparent
@@ -481,8 +325,11 @@ function SceneContent({ progressRef }: { progressRef: React.MutableRefObject<num
 
       {/* Scene objects */}
       <group position={[0, -1, 0]}>
-        <Human />
-        <GlassPole />
+        <TextureErrorBoundary>
+          <Suspense fallback={null}>
+            <Human />
+          </Suspense>
+        </TextureErrorBoundary>
         <OrbitRing />
         <Ground />
 
@@ -498,12 +345,12 @@ function SceneContent({ progressRef }: { progressRef: React.MutableRefObject<num
       {/* Post-processing */}
       <EffectComposer multisampling={0}>
         <Bloom
-          intensity={1.5}
-          luminanceThreshold={0.1}
-          luminanceSmoothing={0.95}
+          intensity={2.8}
+          luminanceThreshold={0.05}
+          luminanceSmoothing={0.9}
           mipmapBlur
         />
-        <Vignette offset={0.3} darkness={0.75} />
+        <Vignette offset={0.3} darkness={0.8} />
       </EffectComposer>
     </>
   );
@@ -522,7 +369,7 @@ export default function Hero() {
     <section
       ref={sectionRef}
       className="relative w-full"
-      style={{ height: "300vh" }}
+      style={{ height: "700vh" }}
     >
       <div className="sticky top-0 w-full h-screen overflow-hidden">
         <Canvas

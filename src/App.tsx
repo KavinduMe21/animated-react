@@ -8,12 +8,6 @@ function App() {
   return (
     <main>
       <Hero />
-      {/* Spacer after hero for natural page flow */}
-      <section className="h-screen flex items-center justify-center">
-        <p className="text-white/20 text-sm tracking-widest uppercase">
-          Continue scrolling
-        </p>
-      </section>
     </main>
   );
 }
