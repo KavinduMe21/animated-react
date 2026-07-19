@@ -111,51 +111,6 @@ function Human() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Glass Pole                                                        */
-/* ------------------------------------------------------------------ */
-function GlassPole() {
-  return (
-    <group position={[0, 1, 0]}>
-      {/* Main pole */}
-      <mesh>
-        <cylinderGeometry args={[0.035, 0.035, 9, 32, 1, true]} />
-        <meshPhysicalMaterial
-          color="#5599dd"
-          transmission={0.94}
-          roughness={0.02}
-          metalness={0}
-          thickness={0.4}
-          ior={1.5}
-          transparent
-          opacity={0.55}
-          envMapIntensity={2.5}
-          clearcoat={1}
-          clearcoatRoughness={0.02}
-          side={THREE.DoubleSide}
-          attenuationColor={new THREE.Color("#2266aa")}
-          attenuationDistance={5}
-        />
-      </mesh>
-      {/* Inner glow core */}
-      <mesh>
-        <cylinderGeometry args={[0.008, 0.008, 9, 8]} />
-        <meshBasicMaterial color="#66aaff" transparent opacity={0.35} />
-      </mesh>
-      {/* Top cap glow */}
-      <mesh position={[0, 4.5, 0]}>
-        <sphereGeometry args={[0.06, 16, 16]} />
-        <meshStandardMaterial color="#88bbff" emissive="#4488ff" emissiveIntensity={3} transparent opacity={0.6} />
-      </mesh>
-      {/* Bottom cap glow */}
-      <mesh position={[0, -4.5, 0]}>
-        <sphereGeometry args={[0.06, 16, 16]} />
-        <meshStandardMaterial color="#88bbff" emissive="#4488ff" emissiveIntensity={3} transparent opacity={0.6} />
-      </mesh>
-    </group>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Floating Particles                                                */
 /* ------------------------------------------------------------------ */
 function Particles({ count = 3000 }: { count?: number }) {
