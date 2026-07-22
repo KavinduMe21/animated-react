@@ -75,8 +75,8 @@ function Whale({ progressRef }: { progressRef: React.MutableRefObject<number> })
     groupRef.current.rotation.y = -angle - Math.PI / 2;
     
     // FASTER undulation (increased multipliers)
-    groupRef.current.rotation.z = Math.sin(t * 2.4) * 0.08 + Math.cos(t * 3.6) * 0.05;
-    groupRef.current.rotation.x = Math.sin(t * 1.8) * 0.06 + Math.cos(t * 2.7) * 0.04;
+    groupRef.current.rotation.z = Math.sin(t * 1.4) * 0.08 + Math.cos(t * 3.6) * 0.05;
+    groupRef.current.rotation.x = Math.sin(t * 0.8) * 0.06 + Math.cos(t * 2.7) * 0.04;
 
     // FASTER tail wag (increased multiplier)
     groupRef.current.rotation.y += Math.sin(t * 5.0) * 0.15;
