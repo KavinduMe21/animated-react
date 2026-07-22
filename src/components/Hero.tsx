@@ -48,11 +48,13 @@ function useSmoothScrollProgress(
 /* ------------------------------------------------------------------ */
 /*  3D Whale – GLB model that orbits the scene                        */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/*  3D Whale – GLB model with swimming animation + orbit              */
+/* ------------------------------------------------------------------ */
 function Whale({ progressRef }: { progressRef: React.MutableRefObject<number> }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF("/white_mesh.glb");
 
-  // Clone the scene so it can be reused without conflicts
   const clonedScene = useMemo(() => scene.clone(), [scene]);
 
   useFrame((state) => {
@@ -65,13 +67,26 @@ function Whale({ progressRef }: { progressRef: React.MutableRefObject<number> })
     // Orbit
     groupRef.current.position.x = Math.cos(angle) * radius;
     groupRef.current.position.z = Math.sin(angle) * radius;
-    groupRef.current.position.y = Math.sin(t * 0.7) * 0.18;
+    
+    // FASTER bobbing (increase multipliers)
+    groupRef.current.position.y = Math.sin(t * 2.0) * 0.18 + Math.sin(t * 3.5) * 0.12;
 
-    // Face movement direction (flipped)
+    // Face direction
     groupRef.current.rotation.y = -angle - Math.PI / 2;
-    // Gentle body roll
-    groupRef.current.rotation.z = Math.sin(t * 0.5) * 0.04;
-    groupRef.current.rotation.x = Math.sin(t * 0.3) * 0.02;
+    
+    // FASTER undulation (increased multipliers)
+    groupRef.current.rotation.z = Math.sin(t * 2.4) * 0.08 + Math.cos(t * 3.6) * 0.05;
+    groupRef.current.rotation.x = Math.sin(t * 1.8) * 0.06 + Math.cos(t * 2.7) * 0.04;
+
+    // FASTER tail wag (increased multiplier)
+    groupRef.current.rotation.y += Math.sin(t * 5.0) * 0.15;
+
+    // FASTER breathing
+    const breathe = 1 + Math.sin(t * 4.0) * 0.03;
+    groupRef.current.scale.set(breathe, breathe, breathe);
+
+    // FASTER swaying
+    groupRef.current.position.x += Math.sin(t * 1.5) * 0.15;
   });
 
   return (
