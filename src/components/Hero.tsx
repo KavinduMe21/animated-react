@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, Suspense, Component, type ReactNode } from "react";
+import { useRef, useEffect, useMemo, useState, Suspense, Component, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, useTexture, Billboard, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
@@ -49,6 +49,9 @@ function useSmoothScrollProgress(
 /*  Scroll-synchronized music with a smooth whale/flame crossfade     */
 /* ------------------------------------------------------------------ */
 function useScrollAudio(progressRef: React.MutableRefObject<number>) {
+  const [isPlaying, setIsPlaying] = useState(true);
+  const controlsRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     const whaleAudio = new Audio("/whale.mp3");
     const flameAudio = new Audio("/flame.mp3");
@@ -60,6 +63,7 @@ function useScrollAudio(progressRef: React.MutableRefObject<number>) {
     flameAudio.volume = 0;
 
     let audioStarted = false;
+    let manuallyPaused = false;
     let animationFrame = 0;
 
     const updateAudio = () => {
@@ -82,11 +86,32 @@ function useScrollAudio(progressRef: React.MutableRefObject<number>) {
     };
 
     const startAudio = () => {
-      if (audioStarted) return;
+      if (audioStarted || manuallyPaused) return;
       audioStarted = true;
-      void whaleAudio.play();
+      const activeAudio = progressRef.current >= 0.7 ? flameAudio : whaleAudio;
+      void activeAudio.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        audioStarted = false;
+      });
     };
 
+    controlsRef.current = () => {
+      if (audioStarted) {
+        manuallyPaused = true;
+        audioStarted = false;
+        whaleAudio.pause();
+        flameAudio.pause();
+        setIsPlaying(false);
+        return;
+      }
+
+      manuallyPaused = false;
+      startAudio();
+    };
+
+    // Try autoplay immediately; interaction listeners remain as the fallback.
+    startAudio();
     window.addEventListener("scroll", startAudio, { passive: true });
     window.addEventListener("wheel", startAudio, { passive: true });
     window.addEventListener("touchstart", startAudio, { passive: true });
@@ -97,12 +122,15 @@ function useScrollAudio(progressRef: React.MutableRefObject<number>) {
       window.removeEventListener("wheel", startAudio);
       window.removeEventListener("touchstart", startAudio);
       cancelAnimationFrame(animationFrame);
+      controlsRef.current = null;
       whaleAudio.pause();
       flameAudio.pause();
       whaleAudio.src = "";
       flameAudio.src = "";
     };
   }, [progressRef]);
+
+  return { isPlaying, toggleAudio: () => controlsRef.current?.() };
 }
 
 /* ------------------------------------------------------------------ */
@@ -453,7 +481,7 @@ export default function Hero() {
   const progressRef = useRef(0);
 
   useSmoothScrollProgress(sectionRef, progressRef);
-  useScrollAudio(progressRef);
+  const { isPlaying, toggleAudio } = useScrollAudio(progressRef);
 
   return (
     <section
@@ -462,6 +490,15 @@ export default function Hero() {
       style={{ height: "700vh" }}
     >
       <div className="sticky top-0 w-full h-screen overflow-hidden">
+        <button
+          type="button"
+          onClick={toggleAudio}
+          aria-label={isPlaying ? "Pause music" : "Play music"}
+          title={isPlaying ? "Pause music" : "Play music"}
+          className="absolute right-6 top-6 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-blue-200/30 bg-slate-950/60 text-sm text-blue-100 backdrop-blur-md transition hover:border-blue-200/70 hover:bg-slate-900/80"
+        >
+          <span aria-hidden="true">{isPlaying ? "||" : ">"}</span>
+        </button>
         <Canvas
           camera={{ position: [0, 0.8, 8.5], fov: 42 }}
           dpr={[1, 2]}
