@@ -49,7 +49,7 @@ function useSmoothScrollProgress(
 /*  Scroll-synchronized music with a smooth whale/flame crossfade     */
 /* ------------------------------------------------------------------ */
 function useScrollAudio(progressRef: React.MutableRefObject<number>) {
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const controlsRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -114,13 +114,11 @@ function useScrollAudio(progressRef: React.MutableRefObject<number>) {
     startAudio();
     window.addEventListener("scroll", startAudio, { passive: true });
     window.addEventListener("wheel", startAudio, { passive: true });
-    window.addEventListener("touchstart", startAudio, { passive: true });
     animationFrame = requestAnimationFrame(updateAudio);
 
     return () => {
       window.removeEventListener("scroll", startAudio);
       window.removeEventListener("wheel", startAudio);
-      window.removeEventListener("touchstart", startAudio);
       cancelAnimationFrame(animationFrame);
       controlsRef.current = null;
       whaleAudio.pause();
@@ -465,13 +463,13 @@ export default function Hero() {
       className="relative w-full"
       style={{ height: "700vh" }}
     >
-      <div className="sticky top-0 w-full h-screen overflow-hidden">
+      <div className="sticky top-0 h-[100svh] min-h-[520px] w-full overflow-hidden">
         <button
           type="button"
           onClick={toggleAudio}
           aria-label={isPlaying ? "Pause music" : "Play music"}
           title={isPlaying ? "Pause music" : "Play music"}
-          className="absolute right-6 top-6 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-blue-200/30 bg-slate-950/60 text-sm text-blue-100 backdrop-blur-md transition hover:border-blue-200/70 hover:bg-slate-900/80"
+          className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-blue-200/30 bg-slate-950/60 text-sm text-blue-100 backdrop-blur-md transition hover:border-blue-200/70 hover:bg-slate-900/80 sm:right-6 sm:top-6"
         >
           <span aria-hidden="true">{isPlaying ? "||" : ">"}</span>
         </button>
@@ -489,7 +487,7 @@ export default function Hero() {
         </Canvas>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-40 z-10 pointer-events-none">
+        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 pointer-events-none flex-col items-center gap-2 opacity-40 sm:bottom-8">
           <span className="text-[10px] tracking-[0.35em] uppercase text-blue-200/50 font-light">
             Scroll to explore
           </span>
