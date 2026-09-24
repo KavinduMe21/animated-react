@@ -46,6 +46,66 @@ function useSmoothScrollProgress(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Scroll-synchronized music with a smooth whale/flame crossfade     */
+/* ------------------------------------------------------------------ */
+function useScrollAudio(progressRef: React.MutableRefObject<number>) {
+  useEffect(() => {
+    const whaleAudio = new Audio("/whale.mp3");
+    const flameAudio = new Audio("/flame.mp3");
+    whaleAudio.loop = true;
+    flameAudio.loop = true;
+    whaleAudio.preload = "auto";
+    flameAudio.preload = "auto";
+    whaleAudio.volume = 0;
+    flameAudio.volume = 0;
+
+    let audioStarted = false;
+    let animationFrame = 0;
+
+    const updateAudio = () => {
+      const progress = progressRef.current;
+      const crossfade = THREE.MathUtils.smoothstep(progress, 0.62, 0.78);
+      const whaleVolume = 0.8 * (1 - crossfade);
+      const flameVolume = 0.8 * crossfade;
+
+      whaleAudio.volume = whaleVolume;
+      flameAudio.volume = flameVolume;
+
+      if (audioStarted) {
+        if (whaleVolume > 0.001 && whaleAudio.paused) void whaleAudio.play();
+        if (flameVolume > 0.001 && flameAudio.paused) void flameAudio.play();
+        if (whaleVolume <= 0.001) whaleAudio.pause();
+        if (flameVolume <= 0.001) flameAudio.pause();
+      }
+
+      animationFrame = requestAnimationFrame(updateAudio);
+    };
+
+    const startAudio = () => {
+      if (audioStarted) return;
+      audioStarted = true;
+      void whaleAudio.play();
+    };
+
+    window.addEventListener("scroll", startAudio, { passive: true });
+    window.addEventListener("wheel", startAudio, { passive: true });
+    window.addEventListener("touchstart", startAudio, { passive: true });
+    animationFrame = requestAnimationFrame(updateAudio);
+
+    return () => {
+      window.removeEventListener("scroll", startAudio);
+      window.removeEventListener("wheel", startAudio);
+      window.removeEventListener("touchstart", startAudio);
+      cancelAnimationFrame(animationFrame);
+      whaleAudio.pause();
+      flameAudio.pause();
+      whaleAudio.src = "";
+      flameAudio.src = "";
+    };
+  }, [progressRef]);
+}
+
+/* ------------------------------------------------------------------ */
 /*  3D Whale – GLB model that orbits the scene                        */
 /* ------------------------------------------------------------------ */
 /* ------------------------------------------------------------------ */
@@ -68,18 +128,19 @@ function Whale({ progressRef }: { progressRef: React.MutableRefObject<number> })
     groupRef.current.position.x = Math.cos(angle) * radius;
     groupRef.current.position.z = Math.sin(angle) * radius;
     
-    // FASTER bobbing (increase multipliers)
-    groupRef.current.position.y = Math.sin(t * 2.0) * 0.18 + Math.sin(t * 3.5) * 0.12;
+    // One full orbit while the whale climbs in a gentle screw pattern.
+    groupRef.current.position.y = p * 4.2 + Math.sin(t * 0.8) * 0.18 + Math.sin(t * 1.4) * 0.12;
 
     // Face direction
     groupRef.current.rotation.y = -angle - Math.PI / 2;
     
     // FASTER undulation (increased multipliers)
     groupRef.current.rotation.z = Math.sin(t * 1.4) * 0.08 + Math.cos(t * 3.6) * 0.05;
-    groupRef.current.rotation.x = Math.sin(t * 0.8) * 0.06 + Math.cos(t * 2.7) * 0.04;
+    groupRef.current.rotation.x = Math.sin(t * 0.8) * 0.1 +
+      Math.sin(t * 1.4) * 0.06;
 
     // FASTER tail wag (increased multiplier)
-    groupRef.current.rotation.y += Math.sin(t * 5.0) * 0.15;
+    groupRef.current.rotation.y += Math.sin(t * 2.0) * 0.15;
 
     // FASTER breathing
     const breathe = 1 + Math.sin(t * 4.0) * 0.03;
@@ -92,6 +153,63 @@ function Whale({ progressRef }: { progressRef: React.MutableRefObject<number> })
   return (
     <group ref={groupRef} scale={1.1}>
       <primitive object={clonedScene} scale={1} />
+    </group>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  3D flame – rises from below as the whale climbs                   */
+/* ------------------------------------------------------------------ */
+function Flame({ progressRef }: { progressRef: React.MutableRefObject<number> }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const outerRef = useRef<THREE.Mesh>(null);
+  const coreRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    if (!groupRef.current || !outerRef.current || !coreRef.current) return;
+    const progress = progressRef.current;
+    const time = state.clock.elapsedTime;
+    const flameOrbitProgress = THREE.MathUtils.clamp((progress - 0.7) / 0.3, 0, 1);
+    const angle = flameOrbitProgress * Math.PI * 2;
+    const radius = 3.6;
+    const flameProgress = THREE.MathUtils.smoothstep(flameOrbitProgress, 0, 0.18);
+
+    // Orbit around the man on the same scroll-driven path as the whale.
+    groupRef.current.position.x = Math.cos(angle) * radius;
+    groupRef.current.position.z = Math.sin(angle) * radius;
+    groupRef.current.position.y = -4.2 + flameOrbitProgress * 5.4;
+    groupRef.current.rotation.y = -angle - Math.PI / 2;
+    groupRef.current.scale.setScalar(flameProgress * (0.9 + Math.sin(time * 2.5) * 0.06));
+
+    (outerRef.current.material as THREE.MeshStandardMaterial).opacity = flameProgress * 0.5;
+    (coreRef.current.material as THREE.MeshStandardMaterial).opacity = flameProgress * 0.95;
+  });
+
+  return (
+    <group ref={groupRef} position={[0, -5.2, 0]}>
+      <mesh ref={outerRef}>
+        <coneGeometry args={[0.9, 2.8, 32, 8]} />
+        <meshStandardMaterial
+          color="#ff3d16"
+          emissive="#ff1800"
+          emissiveIntensity={3}
+          transparent
+          opacity={0.5}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh ref={coreRef} position={[0, -0.05, 0]}>
+        <coneGeometry args={[0.48, 2.05, 24, 8]} />
+        <meshStandardMaterial
+          color="#ffd166"
+          emissive="#ff8a00"
+          emissiveIntensity={4}
+          transparent
+          opacity={0.95}
+          depthWrite={false}
+        />
+      </mesh>
+      <pointLight color="#ff4d16" intensity={5} distance={5} decay={2} />
     </group>
   );
 }
@@ -311,6 +429,7 @@ function SceneContent({ progressRef }: { progressRef: React.MutableRefObject<num
 
       <Particles count={2500} />
       <LightOrbs />
+      <Flame progressRef={progressRef} />
 
       {/* Post-processing */}
       <EffectComposer multisampling={0}>
@@ -334,6 +453,7 @@ export default function Hero() {
   const progressRef = useRef(0);
 
   useSmoothScrollProgress(sectionRef, progressRef);
+  useScrollAudio(progressRef);
 
   return (
     <section
