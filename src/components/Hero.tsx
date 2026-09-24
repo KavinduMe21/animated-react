@@ -49,7 +49,7 @@ function useSmoothScrollProgress(
 /*  Scroll-synchronized music with a smooth whale/flame crossfade     */
 /* ------------------------------------------------------------------ */
 function useScrollAudio(progressRef: React.MutableRefObject<number>) {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const controlsRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -469,7 +469,7 @@ export default function Hero() {
           onClick={toggleAudio}
           aria-label={isPlaying ? "Pause music" : "Play music"}
           title={isPlaying ? "Pause music" : "Play music"}
-          className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-blue-200/30 bg-slate-950/60 text-sm text-blue-100 backdrop-blur-md transition hover:border-blue-200/70 hover:bg-slate-900/80 sm:right-6 sm:top-6"
+          className="absolute right-3 top-3 z-20 flex h-11 w-11 touch-manipulation select-none items-center justify-center rounded-full border border-blue-200/30 bg-slate-950/60 text-sm text-blue-100 backdrop-blur-md transition hover:border-blue-200/70 hover:bg-slate-900/80 sm:right-6 sm:top-6"
         >
           <span aria-hidden="true">{isPlaying ? "||" : ">"}</span>
         </button>
