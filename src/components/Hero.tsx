@@ -190,11 +190,11 @@ function Whale({ progressRef }: { progressRef: React.MutableRefObject<number> })
 /* ------------------------------------------------------------------ */
 function Flame({ progressRef }: { progressRef: React.MutableRefObject<number> }) {
   const groupRef = useRef<THREE.Group>(null);
-  const outerRef = useRef<THREE.Mesh>(null);
-  const coreRef = useRef<THREE.Mesh>(null);
+  const { scene } = useGLTF("/simple_flame.glb");
+  const clonedScene = useMemo(() => scene.clone(), [scene]);
 
   useFrame((state) => {
-    if (!groupRef.current || !outerRef.current || !coreRef.current) return;
+    if (!groupRef.current) return;
     const progress = progressRef.current;
     const time = state.clock.elapsedTime;
     const flameOrbitProgress = THREE.MathUtils.clamp((progress - 0.7) / 0.3, 0, 1);
@@ -208,35 +208,11 @@ function Flame({ progressRef }: { progressRef: React.MutableRefObject<number> })
     groupRef.current.position.y = -4.2 + flameOrbitProgress * 5.4;
     groupRef.current.rotation.y = -angle - Math.PI / 2;
     groupRef.current.scale.setScalar(flameProgress * (0.9 + Math.sin(time * 2.5) * 0.06));
-
-    (outerRef.current.material as THREE.MeshStandardMaterial).opacity = flameProgress * 0.5;
-    (coreRef.current.material as THREE.MeshStandardMaterial).opacity = flameProgress * 0.95;
   });
 
   return (
     <group ref={groupRef} position={[0, -5.2, 0]}>
-      <mesh ref={outerRef}>
-        <coneGeometry args={[0.9, 2.8, 32, 8]} />
-        <meshStandardMaterial
-          color="#ff3d16"
-          emissive="#ff1800"
-          emissiveIntensity={3}
-          transparent
-          opacity={0.5}
-          depthWrite={false}
-        />
-      </mesh>
-      <mesh ref={coreRef} position={[0, -0.05, 0]}>
-        <coneGeometry args={[0.48, 2.05, 24, 8]} />
-        <meshStandardMaterial
-          color="#ffd166"
-          emissive="#ff8a00"
-          emissiveIntensity={4}
-          transparent
-          opacity={0.95}
-          depthWrite={false}
-        />
-      </mesh>
+      <primitive object={clonedScene} scale={1.4} />
       <pointLight color="#ff4d16" intensity={5} distance={5} decay={2} />
     </group>
   );
